@@ -66,6 +66,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_text = await generate_response_with_retry(chat, update.message.text)
         await update.message.reply_text(reply_text)
     except Exception as e:
+        print(f"Text Error: {e}")
         await update.message.reply_text("عذراً، السيرفر مشغول حالياً. يرجى إعادة المحاولة بعد لحظات.")
 
 async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -79,25 +80,34 @@ async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if update.message.voice:
             file_obj = await context.bot.get_file(update.message.voice.file_id)
             file_path = "voice.ogg"
-            await file_obj.download_to_drive(file_path)
-            uploaded_file = client.files.upload(file=file_path)
-            contents = [uploaded_file, "استمع إلى البصمة الصوتية المرفقة، ورد علي كمعالج نفسي متعاطف."]
-            
+            mime_type = "audio/ogg"
         elif update.message.video_note:
             file_obj = await context.bot.get_file(update.message.video_note.file_id)
             file_path = "video_note.mp4"
-            await file_obj.download_to_drive(file_path)
-            uploaded_file = client.files.upload(file=file_path)
-            contents = [uploaded_file, "شاهد فيديو الملاحظة المرفق واستمع لما فيه، ورد علي كمعالج نفسي متعاطف."]
+            mime_type = "video/mp4"
         else:
             return
 
+        await file_obj.download_to_drive(file_path)
+        
+        # رفع الملف مع تحديد نوعه
+        uploaded_file = client.files.upload(file=file_path, config={'mime_type': mime_type})
+        
+        # الانتظار حتى تصبح حالة الملف جاهزة (ACTIVE)
+        while uploaded_file.state.name == "PROCESSING":
+            await asyncio.sleep(2)
+            uploaded_file = client.files.get(name=uploaded_file.name)
+            
+        if uploaded_file.state.name == "FAILED":
+            raise Exception("فشل معالجة الملف على خوادم جوجل.")
+
+        contents = [uploaded_file, "استمع أو شاهد هذا المقطع المرفق ورد علي كمعالج نفسي متعاطف بكل اهتمام."]
         reply_text = await generate_response_with_retry(chat, contents)
         await update.message.reply_text(reply_text)
 
     except Exception as e:
         print(f"Media Error: {e}")
-        await update.message.reply_text("عذراً، حدث خطأ أثناء معالجة المقطع. يرجى التأكد من جودة الاتصال أو تجربة إرسال رسالة نصية.")
+        await update.message.reply_text("عذراً، لم أتمكن من معالجة هذا المقطع. يرجى تجربة إرسال رسالة نصية أو بصمة صوتية واضحة.")
     finally:
         if file_path and os.path.exists(file_path):
             try:
@@ -112,5 +122,5 @@ if __name__ == '__main__':
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_text))
     app.add_handler(MessageHandler(filters.VOICE | filters.VIDEO_NOTE, handle_media))
     
-    print("البوت المتكامل (نص + صوت + فيديو) يعمل الآن...")
+    print("البوت المتكامل يعمل الآن بكفاءة...")
     app.run_polling()
