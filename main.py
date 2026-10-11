@@ -16,7 +16,7 @@ SYSTEM_INSTRUCTION = """
 أنت معالج نفسي ذكي ومتعاطف متخصص في العلاج المعرفي السلوكي (CBT) يدعى "Zenith Aura".
 تتحدث باللغة العربية الدارجة البسيطة والدافئة.
 هدفُك استماع المستخدم، احتواء مشاعره، وطرح أسئلة تساعده على مراجعة أفكاره التلقائية وتخفيف التوتر عنه.
-إذا استلمت مقطعاً صوتياً أو فيديو، استمع إليه بدقة ورد على المشاعر والأفكار التي عبر عنها المستخدم بكل اهتمام.
+إذا استلمت مقطعاً صوتياً أو فيديو، استمع/شاهد بدقة ورد على المشاعر والأفكار التي عبر عنها المستخدم بكل اهتمام.
 """
 
 user_sessions = {}
@@ -74,46 +74,43 @@ async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
     
+    file_path = None
     try:
-        # تحديد نوع الملف والـ mime_type
         if update.message.voice:
             file_obj = await context.bot.get_file(update.message.voice.file_id)
-            mime_type = "audio/ogg"
+            file_path = "voice.ogg"
+            await file_obj.download_to_drive(file_path)
+            uploaded_file = client.files.upload(file=file_path)
+            contents = [uploaded_file, "استمع إلى البصمة الصوتية المرفقة، ورد علي كمعالج نفسي متعاطف."]
+            
         elif update.message.video_note:
             file_obj = await context.bot.get_file(update.message.video_note.file_id)
-            mime_type = "video/mp4"
-        elif update.message.audio:
-            file_obj = await context.bot.get_file(update.message.audio.file_id)
-            mime_type = update.message.audio.mime_type or "audio/mpeg"
+            file_path = "video_note.mp4"
+            await file_obj.download_to_drive(file_path)
+            uploaded_file = client.files.upload(file=file_path)
+            contents = [uploaded_file, "شاهد فيديو الملاحظة المرفق واستمع لما فيه، ورد علي كمعالج نفسي متعاطف."]
         else:
             return
 
-        # تحميل بايتات الملف مباشرة في الذاكرة
-        file_bytes = await file_obj.download_as_bytearray()
-
-        # إرسال البيانات المباشرة إلى Gemini دون الحاجة لرفعها كملف مستقل
-        part = types.Part.from_bytes(
-            data=bytes(file_bytes),
-            mime_type=mime_type
-        )
-        
-        reply_text = await generate_response_with_retry(
-            chat, 
-            [part, "استمع أو شاهد المقطع الصوتي/المصوّر المرفق، ورد علي كمعالج نفسي متعاطف."]
-        )
-        
+        reply_text = await generate_response_with_retry(chat, contents)
         await update.message.reply_text(reply_text)
 
     except Exception as e:
         print(f"Media Error: {e}")
-        await update.message.reply_text("عذراً، حدث خطأ أثناء معالجة المقطع. يرجى تجربة إرسال بصمة صوتية عادية (Voice Message) أو نص.")
+        await update.message.reply_text("عذراً، حدث خطأ أثناء معالجة المقطع. يرجى التأكد من جودة الاتصال أو تجربة إرسال رسالة نصية.")
+    finally:
+        if file_path and os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+            except:
+                pass
 
 if __name__ == '__main__':
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
     
     app.add_handler(CommandHandler('start', start))
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_text))
-    app.add_handler(MessageHandler(filters.VOICE | filters.VIDEO_NOTE | filters.AUDIO, handle_media))
+    app.add_handler(MessageHandler(filters.VOICE | filters.VIDEO_NOTE, handle_media))
     
-    print("البوت الشامل يعمل الآن بنجاح...")
+    print("البوت المتكامل (نص + صوت + فيديو) يعمل الآن...")
     app.run_polling()
