@@ -5,8 +5,8 @@ from google import genai
 from google.genai import types
 
 # 1. استدعاء مفاتيح البيئة
-TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+TELEGRAM_TOKEN = os.environ.get("8849039877:AAGY7DmKv0BB1mEF1l7pGqHvm-vXkBcwvKI")
+GEMINI_API_KEY = os.environ.get("AQ.Ab8RN6JyhOX68cfPlwajjSRE_PvXMFS0RVveNL6ovgJz7BK83Q")
 PORT = int(os.environ.get("PORT", 8080))
 
 # البحث الذكي عن رابط المشروع في متغيرات Railway
@@ -51,7 +51,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("أهلاً بك، أسمعك بكل اهتمام. حدث انقطاع بسيط، أعد إرسال ما تفكر به وسأرد عليك فوراً.")
 
 if __name__ == '__main__':
-    app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
+    app = ApplicationBuilder().token(8849039877:AAGY7DmKv0BB1mEF1l7pGqHvm-vXkBcwvKI).build()
     
     app.add_handler(CommandHandler('start', start))
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
