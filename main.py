@@ -8,7 +8,11 @@ from google.genai import types
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 PORT = int(os.environ.get("PORT", 8080))
-WEBHOOK_URL = os.environ.get("WEBHOOK_URL")
+
+# البحث الذكي عن رابط المشروع في متغيرات Railway
+WEBHOOK_URL = os.environ.get("WEBHOOK_URL") or os.environ.get("RAILWAY_PUBLIC_DOMAIN")
+if WEBHOOK_URL and not WEBHOOK_URL.startswith("http"):
+    WEBHOOK_URL = f"https://{WEBHOOK_URL}"
 
 # 2. تهيئة عميل Gemini
 client = genai.Client(api_key=GEMINI_API_KEY)
@@ -33,7 +37,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
     
     try:
-        response = client.models.generate_content(
+        response = await client.aio.models.generate_content(
             model=MODEL_NAME,
             contents=user_text,
             config=types.GenerateContentConfig(
@@ -43,7 +47,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         await update.message.reply_text(response.text)
     except Exception as e:
-        print(f"Error Details: {e}")
+        print(f"Detailed Error: {e}")
         await update.message.reply_text("أهلاً بك، أسمعك بكل اهتمام. حدث انقطاع بسيط، أعد إرسال ما تفكر به وسأرد عليك فوراً.")
 
 if __name__ == '__main__':
@@ -52,12 +56,11 @@ if __name__ == '__main__':
     app.add_handler(CommandHandler('start', start))
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
     
-    # التشغيل بنظام Webhook المستقر كلياً على السحابة لمنع أي تضارب
-    full_webhook_url = f"{WEBHOOK_URL.rstrip('/')}/{TELEGRAM_TOKEN}" if WEBHOOK_URL else None
+    print(f"Starting server on port {PORT}...")
     
-    print(f"Starting Webhook Server on port {PORT}...")
-    
-    if full_webhook_url:
+    if WEBHOOK_URL:
+        full_webhook_url = f"{WEBHOOK_URL.rstrip('/')}/{TELEGRAM_TOKEN}"
+        print(f"Using Webhook URL: {full_webhook_url}")
         app.run_webhook(
             listen="0.0.0.0",
             port=PORT,
@@ -65,8 +68,6 @@ if __name__ == '__main__':
             webhook_url=full_webhook_url
         )
     else:
-        app.run_webhook(
-            listen="0.0.0.0",
-            port=PORT,
-            url_path=TELEGRAM_TOKEN,
-        )
+        # وضع احتياطي في حال نسيت وضع الرابط لكي يعمل البوت فوراً
+        print("Warning: WEBHOOK_URL not found. Falling back to polling mode.")
+        app.run_polling()
