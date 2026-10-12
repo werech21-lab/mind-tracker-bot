@@ -4,9 +4,9 @@ from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, fil
 from google import genai
 from google.genai import types
 
-# 1. استدعاء مفاتيح البيئة
-TELEGRAM_TOKEN = os.environ.get("8849039877:AAGY7DmKv0BB1mEF1l7pGqHvm-vXkBcwvKI")
-GEMINI_API_KEY = os.environ.get("AQ.Ab8RN6JyhOX68cfPlwajjSRE_PvXMFS0RVveNL6ovgJz7BK83Q")
+# 1. استدعاء أسماء متغيرات البيئة بالشكل الصحيح تماماً
+TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 PORT = int(os.environ.get("PORT", 8080))
 
 # البحث الذكي عن رابط المشروع في متغيرات Railway
@@ -48,10 +48,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(response.text)
     except Exception as e:
         print(f"Detailed Error: {e}")
-        await update.message.reply_text("أهلاً بك، أسمعك بكل اهتمام. حدث انقطاع بسيط، أعد إرسال ما تفكر به وسأرد عليك فوراً.")
+        # تم تعديل رسالة الخطأ مؤقتاً لتظهر لك السبب الحقيقي في حال حدث خطأ لتستطيع معرفته فوراً
+        await update.message.reply_text(f"عذراً، حدث خطأ تقني: {e}")
 
 if __name__ == '__main__':
-    app = ApplicationBuilder().token(8849039877:AAGY7DmKv0BB1mEF1l7pGqHvm-vXkBcwvKI).build()
+    app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
     
     app.add_handler(CommandHandler('start', start))
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
@@ -68,6 +69,5 @@ if __name__ == '__main__':
             webhook_url=full_webhook_url
         )
     else:
-        # وضع احتياطي في حال نسيت وضع الرابط لكي يعمل البوت فوراً
         print("Warning: WEBHOOK_URL not found. Falling back to polling mode.")
         app.run_polling()
