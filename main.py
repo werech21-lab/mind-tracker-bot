@@ -7,8 +7,10 @@ from google.genai import types
 # 1. استدعاء مفاتيح البيئة
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+PORT = int(os.environ.get("PORT", 8080))
+WEBHOOK_URL = os.environ.get("WEBHOOK_URL")
 
-# 2. تهيئة عميل Gemini بالنموذج المستقر
+# 2. تهيئة عميل Gemini
 client = genai.Client(api_key=GEMINI_API_KEY)
 MODEL_NAME = "gemini-1.5-flash"
 
@@ -28,11 +30,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not user_text:
         return
 
-    # إظهار حالة الكتابة للمستخدم
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
     
     try:
-        # إرسال الطلب بشكل مستقل وآمن ومستقر تماماً
         response = client.models.generate_content(
             model=MODEL_NAME,
             contents=user_text,
@@ -52,5 +52,21 @@ if __name__ == '__main__':
     app.add_handler(CommandHandler('start', start))
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
     
-    print("البوت المستقر يعمل الآن بكفاءة تامة...")
-    app.run_polling()
+    # التشغيل بنظام Webhook المستقر كلياً على السحابة لمنع أي تضارب
+    full_webhook_url = f"{WEBHOOK_URL.rstrip('/')}/{TELEGRAM_TOKEN}" if WEBHOOK_URL else None
+    
+    print(f"Starting Webhook Server on port {PORT}...")
+    
+    if full_webhook_url:
+        app.run_webhook(
+            listen="0.0.0.0",
+            port=PORT,
+            url_path=TELEGRAM_TOKEN,
+            webhook_url=full_webhook_url
+        )
+    else:
+        app.run_webhook(
+            listen="0.0.0.0",
+            port=PORT,
+            url_path=TELEGRAM_TOKEN,
+        )
